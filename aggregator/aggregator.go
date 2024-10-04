@@ -16,6 +16,9 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/0xPolygonHermez/zkevm-aggregator/aggregator/accinputhash"
 	"github.com/0xPolygonHermez/zkevm-aggregator/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-aggregator/aggregator/prover"
@@ -27,8 +30,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-aggregator/state/datastream"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	streamlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	synclog "github.com/0xPolygonHermez/zkevm-synchronizer-l1/log"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
@@ -788,7 +789,7 @@ func (a *Aggregator) settleDirect(
 		return false
 	}
 
-	monitoredTxID, err := a.ethTxManager.Add(ctx, to, nil, big.NewInt(0), data, a.cfg.GasOffset, nil)
+	monitoredTxID, err := a.ethTxManager.Add(ctx, to, big.NewInt(0), data, a.cfg.GasOffset, nil)
 	if err != nil {
 		log.Errorf("Error Adding TX to ethTxManager: %v", err)
 		mTxLogger := ethtxmanager.CreateLogger(monitoredTxID, sender, to)
@@ -798,7 +799,7 @@ func (a *Aggregator) settleDirect(
 	}
 
 	// process monitored batch verifications before starting a next cycle
-	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result ethtxmanager.MonitoredTxResult) {
+	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result ethtxtypes.MonitoredTxResult) {
 		a.handleMonitoredTxResult(result)
 	})
 
@@ -887,7 +888,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		// we don't have a proof generating at the moment, check if we
 		// have a proof ready to verify
 
-		proof, err = a.getAndLockProofReadyToVerify(ctx, prover, lastVerifiedBatchNumber)
+		proof, err = a.getAndLockProofReadyToVerify(ctx, lastVerifiedBatchNumber)
 		if errors.Is(err, state.ErrNotFound) {
 			// nothing to verify, swallow the error
 			log.Debug("No proof ready to verify")
@@ -981,7 +982,7 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 	return true, nil
 }
 
-func (a *Aggregator) getAndLockProofReadyToVerify(ctx context.Context, prover proverInterface, lastVerifiedBatchNum uint64) (*state.Proof, error) {
+func (a *Aggregator) getAndLockProofReadyToVerify(ctx context.Context, lastVerifiedBatchNum uint64) (*state.Proof, error) {
 	a.stateDBMutex.Lock()
 	defer a.stateDBMutex.Unlock()
 
@@ -1690,9 +1691,9 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 	})
 }
 
-func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
+func (a *Aggregator) handleMonitoredTxResult(result ethtxtypes.MonitoredTxResult) {
 	mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(result)
-	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+	if result.Status == ethtxtypes.MonitoredTxStatusFailed {
 		mTxResultLogger.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
