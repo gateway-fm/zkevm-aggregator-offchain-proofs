@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"github.com/0xPolygonHermez/zkevm-aggregator/offchainProofs"
 	"path/filepath"
 	"strings"
 
@@ -59,6 +60,8 @@ type Config struct {
 	Metrics metrics.Config
 	// Configuration of the event database connection
 	EventLog event.Config
+	// Configuration of offchain proofs service
+	Offchain offchainProofs.Config `mapstructure:"Offchain"`
 }
 
 // Default parses the default configuration values.

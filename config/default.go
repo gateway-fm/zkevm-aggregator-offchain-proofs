@@ -79,4 +79,6 @@ SequencerPrivateKey = {}
 				Enabled = false
 [EventLog]
 	[EventLog.DB]
+[Offchain]
+	Address = "0.0.0.0:9090"
 `

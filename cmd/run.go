@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-aggregator/offchainProofs"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -90,6 +91,12 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
+	// Offchain service
+	offchainSrv, err := offchainProofs.NewOffchainProofsService(c.Offchain)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	st := newState(c, l2ChainID, stateSqlDB, eventLog)
 
 	c.Aggregator.ChainID = l2ChainID
@@ -116,7 +123,7 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go runAggregator(cliCtx.Context, c.Aggregator, etherman, st)
+	go runAggregator(cliCtx.Context, c.Aggregator, etherman, st, offchainSrv)
 
 	if c.Metrics.Enabled {
 		go startMetricsHttpServer(c.Metrics)
@@ -157,8 +164,8 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman.NewClient(config, c.NetworkConfig.L1Config)
 }
 
-func runAggregator(ctx context.Context, config aggregator.Config, etherman *etherman.Client, st *state.State) {
-	agg, err := aggregator.New(ctx, config, st, etherman)
+func runAggregator(ctx context.Context, config aggregator.Config, etherman *etherman.Client, st *state.State, offchainSrv offchainProofs.IOffchainProofsService) {
+	agg, err := aggregator.New(ctx, config, st, etherman, offchainSrv)
 	if err != nil {
 		log.Fatal(err)
 	}
