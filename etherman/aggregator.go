@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	proofs_pb "github.com/0xPolygonHermez/zkevm-aggregator/offchainProofs/protocols/offchain-proofs"
 	"math/big"
 	"strings"
 
@@ -31,6 +32,69 @@ func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
 		lastVerifiedBatchNum = rollupData.LastVerifiedBatch
 	}
 	return lastVerifiedBatchNum, nil
+}
+
+func (etherMan *Client) BuildTrustedVerifyBatchesTxDataOffchin(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address) (req *proofs_pb.VerifyBatchesRequest, err error) {
+	opts, err := etherMan.generateRandomAuth()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build trusted verify batches, err: %w", err)
+	}
+
+	opts.NoSend = true
+	// force nonce, gas limit and gas price to avoid querying it from the chain
+	opts.Nonce = big.NewInt(1)
+	opts.GasLimit = uint64(1)
+	opts.GasPrice = big.NewInt(1)
+
+	var newLocalExitRoot [32]byte
+	copy(newLocalExitRoot[:], inputs.NewLocalExitRoot)
+
+	var newStateRoot [32]byte
+	copy(newStateRoot[:], inputs.NewStateRoot)
+
+	proof, err := convertProof(inputs.FinalProof.Proof)
+	if err != nil {
+		log.Errorf("error converting proof. Error: %v, Proof: %s", err, inputs.FinalProof.Proof)
+		return nil, err
+	}
+
+	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
+
+	tx, err := etherMan.RollupManager.VerifyBatchesTrustedAggregator(
+		&opts,
+		etherMan.RollupID,
+		pendStateNum,
+		lastVerifiedBatch,
+		newVerifiedBatch,
+		newLocalExitRoot,
+		newStateRoot,
+		beneficiary,
+		proof,
+	)
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
+		return nil, err
+	}
+
+	var proofConverted [][]byte
+	for _, b := range proof {
+		proofConverted = append(proofConverted, b[:])
+	}
+
+	return &proofs_pb.VerifyBatchesRequest{
+		RollupId:         etherMan.RollupID,
+		PendingStateNum:  pendStateNum,
+		InitNumBatch:     lastVerifiedBatch,
+		FinalNewBatch:    newVerifiedBatch,
+		NewLocalExitRoot: newLocalExitRoot[:],
+		NewStateRoot:     newStateRoot[:],
+		Beneficiary:      beneficiary.Hex(),
+		Proof:            proofConverted,
+		Signer:           opts.From.Hex(),
+		TxHash:           tx.Hash().Hex(),
+	}, nil
 }
 
 // BuildTrustedVerifyBatchesTxData builds a []bytes to be sent to the PoE SC method TrustedVerifyBatches.

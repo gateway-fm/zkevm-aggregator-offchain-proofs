@@ -23,6 +23,8 @@ const (
 	// AggLayer settlement backend
 	AggLayer SettlementBackend = "agglayer"
 
+	Offchain SettlementBackend = "offchain"
+
 	// L1 settlement backend
 	L1 SettlementBackend = "l1"
 )
@@ -133,7 +135,7 @@ type Config struct {
 	Synchronizer syncronizerConfig.Config `mapstructure:"Synchronizer"`
 
 	// SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the Beethoven service.
-	SettlementBackend SettlementBackend `mapstructure:"SettlementBackend" jsonschema:"enum=agglayer,enum=l1"`
+	SettlementBackend SettlementBackend `mapstructure:"SettlementBackend" jsonschema:"enum=agglayer,enum=l1,enum=offchain"`
 
 	// SequencerPrivateKey Private key of the trusted sequencer
 	SequencerPrivateKey types.KeystoreFileConfig `mapstructure:"SequencerPrivateKey"`
