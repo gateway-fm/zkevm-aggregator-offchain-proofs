@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-aggregator/offchainProofs"
 	"math/big"
 	"net"
 	"strings"
@@ -92,6 +93,8 @@ type Aggregator struct {
 
 	sequencerPrivateKey *ecdsa.PrivateKey
 	aggLayerClient      AgglayerClientInterface
+
+	offchainSrv offchainProofs.IOffchainProofsService
 }
 
 // New creates a new aggregator.
@@ -99,7 +102,8 @@ func New(
 	ctx context.Context,
 	cfg Config,
 	stateInterface stateInterface,
-	etherman etherman) (*Aggregator, error) {
+	etherman etherman,
+	offchainSrv offchainProofs.IOffchainProofsService) (*Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 
 	switch cfg.TxProfitabilityCheckerType {
@@ -187,6 +191,7 @@ func New(
 		aggLayerClient:          aggLayerClient,
 		sequencerPrivateKey:     sequencerPrivateKey,
 		witnessRetrievalChan:    make(chan state.DBBatch),
+		offchainSrv:             offchainSrv,
 	}
 
 	// Set function to handle the batches from the data stream
@@ -715,6 +720,10 @@ func (a *Aggregator) sendFinalProof() {
 				if success := a.settleWithAggLayer(ctx, proof, inputs); !success {
 					continue
 				}
+			case Offchain:
+				if success := a.settleOffchain(ctx, proof, inputs); !success {
+					continue
+				}
 			default:
 				if success := a.settleDirect(ctx, proof, inputs); !success {
 					continue
@@ -768,6 +777,26 @@ func (a *Aggregator) settleWithAggLayer(
 		log.Errorf("agglayer didn't mine the tx: %v", err)
 		a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 
+		return false
+	}
+
+	return true
+}
+
+// settleOffchain sends the final proof to the offchain service
+// !! NOT FOR PRODUCTION !!
+func (a *Aggregator) settleOffchain(ctx context.Context, proof *state.Proof, inputs ethmanTypes.FinalProofInputs) bool {
+	sender := common.HexToAddress(a.cfg.SenderAddress)
+	req, err := a.etherman.BuildTrustedVerifyBatchesTxDataOffchin(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs, sender)
+	if err != nil {
+		log.Errorf("Error estimating batch verification to send to offchain service: %v", err)
+		a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
+		return false
+	}
+
+	if err = a.offchainSrv.VerifyBatchesSimulate(ctx, req); err != nil {
+		log.Errorf("Error sending TX to offhcan service: %v", err)
+		a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 		return false
 	}
 

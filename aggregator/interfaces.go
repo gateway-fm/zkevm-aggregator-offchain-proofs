@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"context"
+	proofs_pb "github.com/0xPolygonHermez/zkevm-aggregator/offchainProofs/protocols/offchain-proofs"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-aggregator/aggregator/prover"
@@ -31,6 +32,7 @@ type etherman interface {
 	GetRollupId() uint32
 	GetLatestVerifiedBatchNum() (uint64, error)
 	BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address) (to *common.Address, data []byte, err error)
+	BuildTrustedVerifyBatchesTxDataOffchin(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address) (req *proofs_pb.VerifyBatchesRequest, err error)
 	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
 	GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error)
 }
