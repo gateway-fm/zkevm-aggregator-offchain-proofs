@@ -19,7 +19,7 @@ GasOffset = 0
 WitnessURL = "localhost:8123"
 UseL1BatchData = true
 UseFullWitness = false
-SettlementBackend = "l1"
+SettlementBackend = "offchain"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
 MaxWitnessRetrievalWorkers = 2
@@ -79,4 +79,6 @@ SequencerPrivateKey = {}
 				Enabled = false
 [EventLog]
 	[EventLog.DB]
+[Offchain]
+	Address = "0.0.0.0:9090"
 `
