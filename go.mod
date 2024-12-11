@@ -9,6 +9,7 @@ require (
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.6
 	github.com/ethereum/go-ethereum v1.14.7
 	github.com/gobuffalo/packr/v2 v2.8.3
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/invopop/jsonschema v0.12.0
